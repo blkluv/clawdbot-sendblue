@@ -158,6 +158,13 @@ async function processMessage(msg: SendblueMessage): Promise<void> {
 
   log('info', `Inbound from ${msg.from_number.slice(-4)}: "${messageContent.substring(0, 50)}..."`);
 
+  // Mark message as read
+  try {
+    await sendblueClient?.markRead(msg.from_number);
+  } catch (e) {
+    // Non-critical, continue processing
+  }
+
   // Store in conversation history
   addConversationMessage(msg.from_number, msg.from_number, messageContent, false);
 
@@ -205,6 +212,11 @@ async function processMessage(msg: SendblueMessage): Promise<void> {
         },
         onReplyStart: async () => {
           log('info', 'Agent starting reply...');
+          try {
+            await sendblueClient?.sendTypingIndicator(msg.from_number);
+          } catch (e) {
+            // Non-critical, continue
+          }
         },
         onIdle: async () => {
           log('info', 'Agent idle');

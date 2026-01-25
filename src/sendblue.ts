@@ -129,6 +129,44 @@ export class SendblueClient {
   }
 
   /**
+   * Send typing indicator to a recipient
+   */
+  async sendTypingIndicator(toNumber: string): Promise<void> {
+    const response = await fetch(`${SENDBLUE_API_BASE}/send-typing-indicator`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        number: toNumber,
+        from_number: this.phoneNumber,
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.log(`[Sendblue] Typing indicator failed: ${response.status} - ${text}`);
+    }
+  }
+
+  /**
+   * Mark messages as read for a recipient
+   */
+  async markRead(toNumber: string): Promise<void> {
+    const response = await fetch(`${SENDBLUE_API_BASE}/mark-read`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        number: toNumber,
+        from_number: this.phoneNumber,
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.log(`[Sendblue] Mark read failed: ${response.status} - ${text}`);
+    }
+  }
+
+  /**
    * Upload a file from a local path and get a media URL
    */
   async uploadFile(filePath: string): Promise<string> {
