@@ -1,5 +1,5 @@
 {
-  "name": "clawdbot-sendblue",
+  "name": "sendblue",
   "version": "1.0.0",
   "description": "Clawdbot plugin for iMessage/SMS via Sendblue API",
   "type": "module",
