@@ -2,7 +2,7 @@
 
 Text your [clawdbot](https://clawd.bot) via iMessage or SMS.
 
-This plugin connects clawdbot to [Sendblue](https://sendblue.co), letting you chat with your AI assistant by texting a phone number.
+This plugin connects clawdbot to [Sendblue](https://sendblue.com/api), letting you chat with your AI assistant by texting a phone number.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ This plugin connects clawdbot to [Sendblue](https://sendblue.co), letting you ch
 
 ### Step 1: Get Sendblue Credentials
 
-1. Sign up at [sendblue.co](https://sendblue.co)
+1. Sign up at [sendblue.com/api](https://sendblue.com/api)
 2. Go to **Dashboard → API Keys**
 3. Copy your **API Key** (starts with `sb-api-key-`)
 4. Copy your **API Secret** (starts with `sb-secret-`)
