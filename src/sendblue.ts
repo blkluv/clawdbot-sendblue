@@ -3,16 +3,22 @@
  * Adapted from textme daemon
  */
 
-import type { SendblueMessage, Config } from './types.js';
+import type { SendblueMessage } from './types.js';
 
 const SENDBLUE_API_BASE = 'https://api.sendblue.com/api';
+
+interface SendblueClientConfig {
+  apiKey: string;
+  apiSecret: string;
+  phoneNumber: string;
+}
 
 export class SendblueClient {
   private apiKey: string;
   private apiSecret: string;
   private phoneNumber: string;
 
-  constructor(config: Config['sendblue']) {
+  constructor(config: SendblueClientConfig) {
     this.apiKey = config.apiKey;
     this.apiSecret = config.apiSecret;
     this.phoneNumber = config.phoneNumber;

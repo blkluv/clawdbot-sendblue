@@ -1,17 +1,16 @@
 {
   "name": "clawdbot-sendblue",
   "version": "1.0.0",
-  "description": "Sendblue channel adapter for clawdbot - iMessage/SMS via Sendblue API",
+  "description": "Clawdbot plugin for iMessage/SMS via Sendblue API",
   "type": "module",
   "main": "dist/index.js",
-  "bin": {
-    "clawdbot-sendblue": "./dist/index.js"
-  },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "watch": "tsc --watch"
+  },
+  "clawdbot": {
+    "extensions": ["./dist/index.js"]
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0"
@@ -27,11 +26,11 @@
   },
   "keywords": [
     "clawdbot",
+    "plugin",
     "sendblue",
     "imessage",
     "sms",
-    "channel",
-    "adapter"
+    "channel"
   ],
   "license": "MIT"
 }

@@ -1,0 +1,33 @@
+{
+  "id": "sendblue",
+  "name": "Sendblue iMessage/SMS",
+  "description": "Send and receive iMessages/SMS via Sendblue API",
+  "version": "1.0.0",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiKey": { "type": "string" },
+      "apiSecret": { "type": "string" },
+      "phoneNumber": { "type": "string" },
+      "allowFrom": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "pollIntervalMs": { "type": "number", "default": 5000 },
+      "dmPolicy": {
+        "type": "string",
+        "enum": ["allowlist", "open", "disabled"],
+        "default": "allowlist"
+      }
+    },
+    "required": ["apiKey", "apiSecret", "phoneNumber"]
+  },
+  "uiHints": {
+    "apiKey": { "label": "Sendblue API Key", "sensitive": true },
+    "apiSecret": { "label": "Sendblue API Secret", "sensitive": true },
+    "phoneNumber": { "label": "Sendblue Phone Number" },
+    "allowFrom": { "label": "Allowed Phone Numbers (E.164 format)" },
+    "pollIntervalMs": { "label": "Poll Interval (ms)" },
+    "dmPolicy": { "label": "DM Policy" }
+  }
+}

@@ -1,17 +1,15 @@
 /**
- * Type definitions for clawdbot-sendblue adapter
+ * Type definitions for clawdbot-sendblue plugin
  */
 
-// Configuration loaded from environment variables
-export interface Config {
-  sendblue: {
-    apiKey: string;
-    apiSecret: string;
-    phoneNumber: string;
-  };
-  allowlist: string[];
-  pollIntervalMs: number;
-  port: number;
+// Channel configuration from clawdbot.json channels.sendblue
+export interface SendblueChannelConfig {
+  apiKey: string;
+  apiSecret: string;
+  phoneNumber: string;
+  allowFrom?: string[];
+  pollIntervalMs?: number;
+  dmPolicy?: 'allowlist' | 'open' | 'disabled';
 }
 
 // Sendblue API message format
@@ -39,60 +37,10 @@ export interface ConversationMessage {
   is_outbound: boolean;
 }
 
-// Chat summary for chats.list RPC method
+// Chat summary
 export interface ChatInfo {
   chat_id: string;
   last_message?: string;
   last_timestamp?: number;
   message_count: number;
-}
-
-// JSON-RPC request format
-export interface JsonRpcRequest {
-  jsonrpc?: string;
-  method: string;
-  params?: Record<string, unknown>;
-  id?: string | number;
-}
-
-// JSON-RPC response format
-export interface JsonRpcResponse {
-  jsonrpc: string;
-  result?: unknown;
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
-  id: string | number | null;
-}
-
-// SSE event format for clawdbot
-export interface SseEvent {
-  method: string;
-  params: Record<string, unknown>;
-}
-
-// Message event params (sent via SSE when new message arrives)
-export interface MessageEventParams {
-  chat_id: string;
-  from: string;
-  content: string;
-  media_url?: string;
-  timestamp: number;
-  message_id: string;
-  [key: string]: unknown; // Index signature for Record compatibility
-}
-
-// Send RPC params
-export interface SendParams {
-  to: string;
-  content: string;
-  media_url?: string;
-}
-
-// Processed message record (for deduplication)
-export interface ProcessedMessage {
-  message_id: string;
-  processed_at: number;
 }
