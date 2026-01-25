@@ -230,8 +230,17 @@ export function createSendblueChannel(api: any) {
 
     // Gateway adapter for lifecycle
     gateway: {
-      start: async (config: SendblueChannelConfig) => {
-        log('info', 'Channel starting...');
+      start: async (...args: any[]) => {
+        log('info', `gateway.start called with ${args.length} args`);
+        for (let i = 0; i < args.length; i++) {
+          const arg = args[i];
+          if (typeof arg === 'object' && arg !== null) {
+            log('info', `  arg[${i}] keys: ${Object.keys(arg).join(', ')}`);
+          } else {
+            log('info', `  arg[${i}]: ${typeof arg}`);
+          }
+        }
+        const config = args[0] as SendblueChannelConfig;
         startPolling(api, config);
       },
       stop: async () => {
