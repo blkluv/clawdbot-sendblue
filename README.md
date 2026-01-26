@@ -103,11 +103,15 @@ By default, the plugin checks for messages every 5 seconds. For instant delivery
 }
 ```
 
-Then configure Sendblue to send webhooks to `https://your-server:3141/webhook/sendblue`.
+**Setup:**
+1. Expose port 3141 to the internet (use ngrok, Cloudflare Tunnel, or a public server)
+2. In your Sendblue dashboard, set the webhook URL to `https://your-server/webhook/sendblue`
+3. In Sendblue, set the same `secret` value for webhook authentication
 
-> **Security:** Set a `secret` and configure the same secret in your Sendblue dashboard. The webhook includes rate limiting (60 req/min by default).
-
-> **HTTPS:** Use a reverse proxy (nginx, Caddy, or Cloudflare Tunnel) for SSL termination.
+**Security notes:**
+- **Always set a secret** - Without it, anyone can send fake messages to your webhook
+- **Use HTTPS** - Use a reverse proxy (nginx, Caddy) or tunnel service for SSL
+- **Rate limiting** - Built-in at 60 req/min to prevent abuse
 
 ### All Options
 
