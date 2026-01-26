@@ -7,7 +7,8 @@ Text your [clawdbot](https://clawd.bot) via iMessage or SMS.
 ### 1. Create a Sendblue Account
 
 1. Go to [sendblue.com/api](https://sendblue.com/api) and click **"Try for free"**
-2. After signing up, find these three things in your dashboard:
+2. After signing up, **verify your phone number** in the dashboard (required for free tier)
+3. Find these three things in your dashboard:
    - **API Key**
    - **API Secret**
    - **Your Sendblue phone number** (e.g., `+15551234567`)
