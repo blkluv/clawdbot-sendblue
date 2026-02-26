@@ -1,56 +1,30 @@
 {
-  "id": "sendblue",
-  "name": "Sendblue iMessage/SMS",
-  "description": "Send and receive iMessages/SMS via Sendblue API",
+  "id": "multichannel",
+  "name": "Sendblue + ClawdTalk",
+  "description": "SMS + Voice via Sendblue and ClawdTalk",
   "version": "1.0.0",
-  "channels": ["sendblue"],
+  "channels": ["sendblue", "clawdtalk"],
   "configSchema": {
     "type": "object",
     "properties": {
-      "apiKey": { "type": "string" },
-      "apiSecret": { "type": "string" },
-      "phoneNumber": { "type": "string" },
-      "allowFrom": {
-        "type": "array",
-        "items": { "type": "string" }
-      },
-      "pollIntervalMs": { "type": "number", "default": 5000 },
-      "dmPolicy": {
-        "type": "string",
-        "enum": ["allowlist", "open", "disabled"],
-        "default": "allowlist"
-      },
-      "webhook": {
+      "sendblue": {
         "type": "object",
         "properties": {
-          "enabled": { "type": "boolean", "default": false },
-          "port": { "type": "number", "default": 3141 },
-          "path": { "type": "string", "default": "/webhook/sendblue" },
-          "secret": { "type": "string" },
-          "rateLimit": {
-            "type": "object",
-            "properties": {
-              "windowMs": { "type": "number", "default": 60000 },
-              "maxRequests": { "type": "number", "default": 60 }
-            }
-          }
-        }
+          "apiKey": { "type": "string" },
+          "apiSecret": { "type": "string" },
+          "phoneNumber": { "type": "string" }
+        },
+        "required": ["apiKey", "apiSecret", "phoneNumber"]
+      },
+      "clawdtalk": {
+        "type": "object",
+        "properties": {
+          "apiKey": { "type": "string" },
+          "webhookPort": { "type": "number", "default": 3200 },
+          "agentId": { "type": "string" }
+        },
+        "required": ["apiKey"]
       }
-    },
-    "required": ["apiKey", "apiSecret", "phoneNumber"]
-  },
-  "uiHints": {
-    "apiKey": { "label": "Sendblue API Key", "sensitive": true },
-    "apiSecret": { "label": "Sendblue API Secret", "sensitive": true },
-    "phoneNumber": { "label": "Sendblue Phone Number" },
-    "allowFrom": { "label": "Allowed Phone Numbers (E.164 format)" },
-    "pollIntervalMs": { "label": "Poll Interval (ms)" },
-    "dmPolicy": { "label": "DM Policy" },
-    "webhook.enabled": { "label": "Enable Webhook Server" },
-    "webhook.port": { "label": "Webhook Port" },
-    "webhook.path": { "label": "Webhook Path" },
-    "webhook.secret": { "label": "Webhook Secret", "sensitive": true },
-    "webhook.rateLimit.windowMs": { "label": "Rate Limit Window (ms)" },
-    "webhook.rateLimit.maxRequests": { "label": "Max Requests per Window" }
+    }
   }
 }
