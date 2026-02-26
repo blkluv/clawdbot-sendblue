@@ -1,1 +1,23 @@
-bb
+{
+  "id": "clawdtalk",
+  "name": "ClawdTalk Voice",
+  "description": "Voice conversations via ClawdTalk",
+  "version": "1.0.0",
+  "channels": ["clawdtalk"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiKey": { "type": "string" },
+      "webhookPort": { "type": "number", "default": 3200 },
+      "webhookPath": { "type": "string", "default": "/webhook/clawdtalk" },
+      "agentId": { "type": "string" }
+    },
+    "required": ["apiKey"]
+  },
+  "uiHints": {
+    "apiKey": { "label": "ClawdTalk API Key", "sensitive": true },
+    "webhookPort": { "label": "Webhook Port" },
+    "webhookPath": { "label": "Webhook Path" },
+    "agentId": { "label": "Agent ID" }
+  }
+}
