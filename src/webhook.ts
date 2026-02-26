@@ -1,5 +1,7 @@
 /**
- * Webhook server for receiving Sendblue messages in real-time
+ * Webhook server for receiving messages in real-time (multi-instance safe)
+ * - Supports multiple concurrent webhook servers (e.g., sendblue + clawdtalk)
+ * - Each server is keyed by a unique serverId (usually the channel id)
  */
 
 import http from 'http';
@@ -24,7 +26,6 @@ class InMemoryRateLimiter {
   constructor(windowMs: number = 60000, maxRequests: number = 60) {
     this.windowMs = windowMs;
     this.maxRequests = maxRequests;
-    // Clean up old entries every minute
     this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
   }
 
@@ -33,14 +34,11 @@ class InMemoryRateLimiter {
     const entry = this.requests.get(identifier);
 
     if (!entry || now - entry.windowStart > this.windowMs) {
-      // New window
       this.requests.set(identifier, { count: 1, windowStart: now });
       return true;
     }
 
-    if (entry.count >= this.maxRequests) {
-      return false;
-    }
+    if (entry.count >= this.maxRequests) return false;
 
     entry.count++;
     return true;
@@ -81,16 +79,15 @@ export interface WebhookServerConfig {
   };
 }
 
-let server: http.Server | null = null;
-let rateLimiter: InMemoryRateLimiter | null = null;
+// Multi-instance state keyed by serverId (use channel id like "sendblue")
+const servers = new Map<string, http.Server>();
+const rateLimiters = new Map<string, InMemoryRateLimiter>();
 
 /**
  * Validate that the payload has required SendblueMessage fields
  */
 function isValidSendbluePayload(payload: unknown): payload is SendblueMessage {
-  if (typeof payload !== 'object' || payload === null) {
-    return false;
-  }
+  if (typeof payload !== 'object' || payload === null) return false;
   const obj = payload as Record<string, unknown>;
   return (
     typeof obj.message_handle === 'string' &&
@@ -107,7 +104,6 @@ function isValidSendbluePayload(payload: unknown): payload is SendblueMessage {
 function verifySecret(req: http.IncomingMessage, expectedSecret: string): boolean {
   const headers = req.headers;
 
-  // Check common webhook secret header names
   const providedSecret =
     headers['x-sendblue-secret'] ||
     headers['x-webhook-secret'] ||
@@ -115,7 +111,6 @@ function verifySecret(req: http.IncomingMessage, expectedSecret: string): boolea
     headers['authorization'];
 
   if (typeof providedSecret === 'string') {
-    // Handle "Bearer <token>" format
     const token = providedSecret.startsWith('Bearer ')
       ? providedSecret.slice(7)
       : providedSecret;
@@ -126,30 +121,36 @@ function verifySecret(req: http.IncomingMessage, expectedSecret: string): boolea
 }
 
 /**
- * Start the webhook server
+ * Start a webhook server instance.
+ * IMPORTANT: serverId must be unique per instance (e.g., "sendblue", "clawdtalk")
  */
-export function startWebhookServer(config: WebhookServerConfig): void {
+export function startWebhookServer(serverId: string, config: WebhookServerConfig): void {
   const { port, path, secret, rateLimit: rateLimitConfig, onMessage, logger } = config;
   const log = logger || { info: console.log, error: console.error };
 
-  if (server) {
-    log.info('[Webhook] Server already running');
+  if (!serverId || typeof serverId !== 'string') {
+    throw new Error('startWebhookServer requires a non-empty serverId string');
+  }
+
+  if (servers.has(serverId)) {
+    log.info(`[Webhook:${serverId}] Server already running`);
     return;
   }
 
-  // Initialize rate limiter
-  rateLimiter = new InMemoryRateLimiter(
+  // Initialize rate limiter for this server
+  const limiter = new InMemoryRateLimiter(
     rateLimitConfig?.windowMs || 60000,
     rateLimitConfig?.maxRequests || 60
   );
+  rateLimiters.set(serverId, limiter);
 
-  server = http.createServer((req, res) => {
+  const server = http.createServer((req, res) => {
     const clientIP = req.socket.remoteAddress || 'unknown';
 
-    // Health check endpoint
+    // Health check endpoint (scoped)
     if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok' }));
+      res.end(JSON.stringify({ status: 'ok', serverId }));
       return;
     }
 
@@ -161,8 +162,9 @@ export function startWebhookServer(config: WebhookServerConfig): void {
     }
 
     // Rate limiting
-    if (!rateLimiter!.isAllowed(clientIP)) {
-      log.error(`[Webhook] Rate limit exceeded for ${clientIP}`);
+    const activeLimiter = rateLimiters.get(serverId);
+    if (activeLimiter && !activeLimiter.isAllowed(clientIP)) {
+      log.error(`[Webhook:${serverId}] Rate limit exceeded for ${clientIP}`);
       res.writeHead(429, {
         'Content-Type': 'application/json',
         'Retry-After': '60',
@@ -173,7 +175,7 @@ export function startWebhookServer(config: WebhookServerConfig): void {
 
     // Secret verification (if configured)
     if (secret && !verifySecret(req, secret)) {
-      log.error(`[Webhook] Invalid or missing secret from ${clientIP}`);
+      log.error(`[Webhook:${serverId}] Invalid or missing secret from ${clientIP}`);
       res.writeHead(401, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return;
@@ -196,7 +198,7 @@ export function startWebhookServer(config: WebhookServerConfig): void {
     });
 
     req.on('error', (err) => {
-      log.error(`[Webhook] Request error: ${err.message}`);
+      log.error(`[Webhook:${serverId}] Request error: ${err.message}`);
       if (!res.headersSent) {
         res.writeHead(500);
         res.end();
@@ -206,7 +208,7 @@ export function startWebhookServer(config: WebhookServerConfig): void {
     req.on('end', async () => {
       if (bodyTooLarge || res.headersSent) return;
 
-      // Parse and validate JSON before responding
+      // Parse JSON
       let payload: unknown;
       try {
         payload = JSON.parse(body);
@@ -216,72 +218,88 @@ export function startWebhookServer(config: WebhookServerConfig): void {
         return;
       }
 
-      // Validate required fields
+      // Validate required fields (Sendblue-specific)
       if (!isValidSendbluePayload(payload)) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid payload: missing required fields' }));
         return;
       }
 
-      // Respond 200 OK - payload is valid, we'll process it
-      // This prevents Sendblue from retrying
+      // Respond 200 OK - payload is valid, we'll process it async
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ received: true }));
 
       // Only process inbound messages
-      if (payload.is_outbound) {
-        return;
-      }
+      if ((payload as any).is_outbound) return;
 
       try {
-        log.info(`[Webhook] Received message from ${payload.from_number.slice(-4)}`);
+        log.info(`[Webhook:${serverId}] Received message from ${payload.from_number.slice(-4)}`);
         await onMessage(payload);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        log.error(`[Webhook] Error processing message: ${errorMsg}`);
+        log.error(`[Webhook:${serverId}] Error processing message: ${errorMsg}`);
       }
     });
   });
 
+  servers.set(serverId, server);
+
   server.listen(port, () => {
-    log.info(`[Webhook] Server listening on port ${port}`);
-    log.info(`[Webhook] Endpoint: http://localhost:${port}${path}`);
-    if (secret) {
-      log.info('[Webhook] Secret verification enabled');
-    }
-    log.info(`[Webhook] Rate limit: ${rateLimitConfig?.maxRequests || 60} req/${(rateLimitConfig?.windowMs || 60000) / 1000}s`);
+    log.info(`[Webhook:${serverId}] Server listening on port ${port}`);
+    log.info(`[Webhook:${serverId}] Endpoint: http://localhost:${port}${path}`);
+    if (secret) log.info(`[Webhook:${serverId}] Secret verification enabled`);
+    log.info(
+      `[Webhook:${serverId}] Rate limit: ${rateLimitConfig?.maxRequests || 60} req/${(rateLimitConfig?.windowMs || 60000) / 1000}s`
+    );
   });
 
   server.on('error', (error) => {
-    log.error(`[Webhook] Server error: ${error.message}`);
+    log.error(`[Webhook:${serverId}] Server error: ${error.message}`);
   });
 }
 
 /**
- * Stop the webhook server
+ * Stop a specific webhook server instance by serverId.
  */
-export function stopWebhookServer(): Promise<void> {
+export function stopWebhookServer(serverId: string): Promise<void> {
   return new Promise((resolve) => {
-    if (rateLimiter) {
-      rateLimiter.destroy();
-      rateLimiter = null;
+    const limiter = rateLimiters.get(serverId);
+    if (limiter) {
+      limiter.destroy();
+      rateLimiters.delete(serverId);
     }
 
+    const server = servers.get(serverId);
     if (!server) {
       resolve();
       return;
     }
 
     server.close(() => {
-      server = null;
+      servers.delete(serverId);
       resolve();
     });
   });
 }
 
 /**
- * Check if webhook server is running
+ * Stop all webhook server instances.
  */
-export function isWebhookServerRunning(): boolean {
-  return server !== null;
+export async function stopAllWebhookServers(): Promise<void> {
+  const ids = Array.from(servers.keys());
+  await Promise.all(ids.map((id) => stopWebhookServer(id)));
+}
+
+/**
+ * Check if a specific webhook server instance is running.
+ */
+export function isWebhookServerRunning(serverId: string): boolean {
+  return servers.has(serverId);
+}
+
+/**
+ * List running server IDs (useful for debugging).
+ */
+export function listRunningWebhookServers(): string[] {
+  return Array.from(servers.keys());
 }
