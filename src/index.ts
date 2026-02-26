@@ -1,42 +1,81 @@
-/**
- * Clawdbot Sendblue Plugin
- *
- * Registers a Sendblue messaging channel for iMessage/SMS support.
- */
+import {
+  createSendblueChannel,
+  startSendblueService,
+  stopSendblueService
+} from './channel.js';
 
-import { createSendblueChannel, startSendblueService, stopSendblueService } from './channel.js';
+import {
+  createClawdtalkChannel
+} from './clawdtalk-channel.js';
+
+import {
+  startClawdTalkWebhook,
+  stopClawdTalkWebhook
+} from './clawdtalk-webhook.js';
 
 /**
  * Plugin entry point
- * Called by clawdbot to register the plugin
  */
 export default function register(api: any) {
   const log = api.logger || console;
+  const config = api.pluginConfig;
 
-  log.info('[Sendblue Plugin] Registering channel...');
+  if (!config) {
+    log.warn('[Multichannel Plugin] No config provided');
+    return;
+  }
 
-  const channel = createSendblueChannel(api);
-  api.registerChannel({ plugin: channel });
+  /*
+   * -------------------------
+   * SENDBLUE REGISTRATION
+   * -------------------------
+   */
+  if (config.sendblue) {
+    log.info('[Multichannel Plugin] Registering Sendblue channel...');
 
-  log.info('[Sendblue Plugin] Channel registered');
+    const sendblueChannel = createSendblueChannel(api);
+    api.registerChannel({ plugin: sendblueChannel });
 
-  // Register service to handle polling lifecycle
-  api.registerService({
-    id: 'sendblue-poller',
-    start: () => {
-      log.info('[Sendblue Plugin] Service starting...');
-      const config = api.pluginConfig;
-      if (config) {
-        startSendblueService(api, config);
-      } else {
-        log.warn('[Sendblue Plugin] No config found, service not started');
-      }
-    },
-    stop: () => {
-      log.info('[Sendblue Plugin] Service stopping...');
-      stopSendblueService();
-    },
-  });
+    api.registerService({
+      id: 'sendblue-service',
+      start: () => {
+        log.info('[Sendblue Service] Starting...');
+        startSendblueService(api, config.sendblue);
+      },
+      stop: () => {
+        log.info('[Sendblue Service] Stopping...');
+        stopSendblueService();
+      },
+    });
 
-  log.info('[Sendblue Plugin] Service registered');
+    log.info('[Multichannel Plugin] Sendblue registered');
+  }
+
+  /*
+   * -------------------------
+   * CLAWDTALK REGISTRATION
+   * -------------------------
+   */
+  if (config.clawdtalk) {
+    log.info('[Multichannel Plugin] Registering ClawdTalk channel...');
+
+    const clawdtalkChannel = createClawdtalkChannel(api);
+    api.registerChannel({ plugin: clawdtalkChannel });
+
+    api.registerService({
+      id: 'clawdtalk-service',
+      start: () => {
+        log.info('[ClawdTalk Service] Starting...');
+        startClawdTalkWebhook(clawdtalkChannel, config.clawdtalk);
+      },
+      stop: () => {
+        log.info('[ClawdTalk Service] Stopping...');
+        stopClawdTalkWebhook();
+      },
+    });
+
+    log.info('[Multichannel Plugin] ClawdTalk registered');
+  }
+
+  log.info('[Multichannel Plugin] Initialization complete');
 }
